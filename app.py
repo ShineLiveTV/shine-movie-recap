@@ -27,7 +27,6 @@ from utils import process_video_edit, create_ai_audio, analyze_script_with_ai
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-# --- 1. TEMPLATE FOLDER CHANGE (FIXED FOR RENDER) ---
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__, template_folder=BASE_DIR)
 app.secret_key = os.environ.get('SECRET_KEY', 'secure-recap-maker-key')
@@ -171,20 +170,15 @@ def dl_video():
         
         secure_uuid = uuid.uuid4().hex
         
-        # --- YOUTUBE ANTI-BOT BYPASS ---
+        # --- FINAL YOUTUBE ANTI-BOT BYPASS (TV CLIENT) ---
         opts = {
             'outtmpl': os.path.join(UPLOAD_FOLDER, f'vid_{secure_uuid}.%(ext)s'),
             'format': 'm4a/bestaudio/best', 
             'noplaylist': True, 
             'quiet': True,
             'nocheckcertificate': True,
-            'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-us,en;q=0.5',
-                'Sec-Fetch-Mode': 'navigate'
-            }
+            # TV Client အနေနဲ့ ဝင်ဆွဲပါမည်
+            'extractor_args': {'youtube': {'player_client': ['tv', 'mweb']}},
         }
         
         with yt_dlp.YoutubeDL(opts) as ydl:
