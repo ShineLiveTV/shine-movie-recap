@@ -27,15 +27,14 @@ from utils import process_video_edit, create_ai_audio, analyze_script_with_ai
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-# --- 1. TEMPLATE FOLDER CHANGE ---
-app = Flask(__name__, template_folder='.')
-# Session key keeps purely for UI purposes, not for file security anymore
+# --- 1. TEMPLATE FOLDER CHANGE (FIXED FOR RENDER) ---
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+app = Flask(__name__, template_folder=BASE_DIR)
 app.secret_key = os.environ.get('SECRET_KEY', 'secure-recap-maker-key')
 
 # --- CONFIG ---
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
-PROCESSED_FOLDER = os.path.join(BASE_DIR, 'static/processed')
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
+PROCESSED_FOLDER = os.path.join(BASE_DIR, 'static', 'processed')
 
 for f in [UPLOAD_FOLDER, PROCESSED_FOLDER]:
     os.makedirs(f, exist_ok=True)
@@ -104,7 +103,7 @@ def cleanup_worker():
 threading.Thread(target=worker, daemon=True).start()
 threading.Thread(target=cleanup_worker, daemon=True).start()
 
-# --- HELPER: GET USER ID (UI Display Only) ---
+# --- HELPER: GET USER ID ---
 def get_user_id():
     if 'user_id' not in session:
         session['user_id'] = str(uuid.uuid4())[:6] 
@@ -148,8 +147,6 @@ def up_video():
             return jsonify({'status':'error', 'message': 'No selected file'})
         
         ext = f.filename.rsplit('.', 1)[1].lower() if '.' in f.filename else 'mp4'
-        
-        # --- SECURITY FIX: ULTRA-SECURE FILENAME ---
         secure_uuid = uuid.uuid4().hex
         safe_name = f"vid_{secure_uuid}.{ext}"
         
@@ -172,21 +169,27 @@ def dl_video():
         url = request.json.get('url')
         if not url: return jsonify({'status':'error', 'message': 'No URL'})
         
-        # --- SECURITY FIX ---
         secure_uuid = uuid.uuid4().hex
         
+        # --- YOUTUBE ANTI-BOT BYPASS ---
         opts = {
             'outtmpl': os.path.join(UPLOAD_FOLDER, f'vid_{secure_uuid}.%(ext)s'),
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'format': 'm4a/bestaudio/best', 
             'noplaylist': True, 
             'quiet': True,
             'nocheckcertificate': True,
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Sec-Fetch-Mode': 'navigate'
+            }
         }
         
         with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
             
-        # Find the file we just downloaded
         target_prefix = f"vid_{secure_uuid}"
         f = next((x for x in os.listdir(UPLOAD_FOLDER) if x.startswith(target_prefix)), None)
         
@@ -197,28 +200,21 @@ def dl_video():
         return jsonify({'status':'error', 'message': 'Download failed'})
     except Exception as e: return jsonify({'status':'error', 'message':str(e)})
 
-# --- FIXED RE-ANALYZE ROUTE ---
 @app.route('/re-analyze', methods=['POST'])
 def re_analyze():
     try:
-        # FIX: Check for BOTH 'video_filename' AND 'filename'
-        filename = request.form.get('video_filename') or request.form.get('filename')
+        filename = request.form.get('filename')
         
-        if not filename: 
-            return jsonify({'status':'error', 'message':'No filename received', 'translated_text': 'Error: Please upload a video first.'})
+        if not filename: return jsonify({'status':'error', 'message':'No file specified'})
         
         path = os.path.join(UPLOAD_FOLDER, filename)
         
         if not os.path.exists(path): 
-            return jsonify({'status':'error', 'message':'File not found (Expired)', 'translated_text': 'Error: Video file expired or deleted.'})
+            return jsonify({'status':'error', 'message':'File not found (Expired)'})
 
-        # Process with AI
         txt = analyze_script_with_ai(path)
         return jsonify({'status':'success', 'translated_text': txt})
-        
-    except Exception as e: 
-        return jsonify({'status':'error', 'message':str(e), 'translated_text': f'Server Error: {str(e)}'})
-# ------------------------------
+    except Exception as e: return jsonify({'status':'error', 'message':str(e)})
 
 @app.route('/process', methods=['POST'])
 def start_process():
@@ -233,13 +229,11 @@ def start_process():
         if not os.path.exists(ip): 
             return jsonify({'status':'error', 'message':'Source video not found (Expired)'})
 
-        # Generate unique output filename
         job_id = uuid.uuid4().hex
         op = os.path.join(PROCESSED_FOLDER, f"recap_{job_id}.mp4")
         
         def is_on(k): return d.get(k) in ['on', 'true', '1']
         
-        # --- UPDATE START: ADDED TEXT COORDINATES HERE ---
         opts = {
             'text_watermark': d.get('text_watermark'),
             'text_x': int(float(d.get('text_x', 10))),  
@@ -255,12 +249,10 @@ def start_process():
             'bypass_color': is_on('bypass_color'),
             'monezlation': is_on('monezlation'),
         }
-        # --- UPDATE END ---
 
         if request.files.get('logo_file'):
             l = request.files['logo_file']
             if l.filename:
-                # Use secure UUID for logo too
                 lp = os.path.join(UPLOAD_FOLDER, f"logo_{job_id}.png")
                 l.save(lp)
                 opts['logo_path'] = lp
@@ -285,5 +277,7 @@ def check_status(job_id):
     return jsonify(job)
 
 if __name__ == '__main__':
-    print("🚀 Recap Maker Server Running on Port 7860...")
-    app.run(debug=False, port=7860, host='0.0.0.0')
+    port = int(os.environ.get('PORT', 10000))
+    print(f"🚀 Recap Maker Server Running on Port {port}...")
+    app.run(debug=False, port=port, host='0.0.0.0')
+
