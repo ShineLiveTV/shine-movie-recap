@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shine Movie Recap Pro</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore-compat.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Reverted to Dark Theme (Shine Style) */
+            --bg-color: #0f172a;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --card-bg: #1e293b;
+            --border: #334155;
+            --input-bg: #020617;
+            
+            --accent: #f43f5e;
+            --gold: #fbbf24;
+            --primary-btn: #2563eb;
+            
+            /* Icon Colors */
+            --icon-purple: #a78bfa;
+            --icon-blue: #60a5fa;
+            --icon-teal: #2dd4bf;
+            --icon-pink: #f472b6;
+            --icon-orange: #fb923c;
+        }
+
+        body { 
+            background-color: var(--bg-color);
+            color: var(--text-main); 
+            font-family: 'Inter', 'Padauk', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            overscroll-behavior: none; 
+            min-height: 100vh;
+        }
+
+        /* --- Login Screen --- */
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10000; display: flex; flex-direction: column; align-items: center; 
+            background: var(--bg-color);
+            overflow-y: auto; padding: 40px 20px; box-sizing: border-box;
+        }
+
+        .login-card {
+            background: var(--card-bg); padding: 40px; border-radius: 24px; 
+            border: 1px solid var(--border);
+            text-align: center; width: 100%; max-width: 380px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            margin: auto;
+        }
+
+        /* --- Dashboard Styles --- */
+        #dashboard-view {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            margin-top: 10px;
+        }
+
+        .header-title h1 {
+            font-size: 22px;
+            font-weight: 800;
+            margin: 0;
+            color: var(--text-main);
+        }
+
+        .header-title p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .header-profile {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+            cursor: pointer;
+        }
+
+        /* Grid Layout */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1fr; /* Mobile default */
+            gap: 15px;
+            padding-bottom: 50px;
+        }
+
+        @media (min-width: 600px) {
+            .tools-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 140px;
+        }
+
+        .tool-card:active { transform: scale(0.98); }
+        .tool-card:hover { 
+            border-color: var(--icon-blue); 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+
+        .pro-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--bg-color);
+            background: var(--gold);
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+
+        .card-content h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .card-content p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .card-arrow {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: var(--text-muted);
+        }
+
+        /* --- Workspace --- */
+        #workspace-view {
+            display: none;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        /* Inputs for Dark Theme */
+        input[type="text"], textarea, select, input[type="password"] { 
+            width: 100%; padding: 16px; 
+            background: var(--input-bg); 
+            border: 1px solid var(--border); 
+            border-radius: 14px; 
+            color: var(--text-main); 
+            font-size: 15px; outline: none; box-sizing: border-box; 
+            margin-bottom: 12px; transition: 0.3s; 
+        }
+        input:focus, textarea:focus { border-color: var(--icon-blue); background: #000; }
+
+        .btn { 
+            width: 100%; padding: 18px; border: none; border-radius: 16px; font-weight: bold; font-size: 16px; 
+            cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; 
+            text-decoration: none; transition: 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        
+        /* Card styling for workspace */
+        .workspace-card {
+            background: var(--card-bg); border-radius: 20px; 
+            padding: 20px; margin-bottom: 20px; 
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card-title-ws {
+            font-size: 14px; font-weight: 800; color: var(--icon-blue); 
+            margin-bottom: 15px; display: block; text-transform: uppercase;
+        }
+
+        .back-btn {
+            background: none; border: none; cursor: pointer;
+            font-size: 16px; color: var(--text-main);
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 20px; font-weight: 600;
+        }
+
+        /* --- Utilities --- */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 99999; flex-direction: column; justify-content: center; align-items: center; color: var(--text-main); font-weight: bold; }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-top: 4px solid var(--icon-blue); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Plan Box Styles (Dark) */
+        .plan-box { background: var(--input-bg); border: 1px solid var(--border); padding: 15px; border-radius: 12px; margin-bottom: 10px; text-align: left;}
+        .plan-box.pro { border-color: var(--gold); background: rgba(251, 191, 36, 0.1); }
+        .plan-name { font-weight: bold; color: var(--text-main); }
+        .plan-cost { color: var(--gold); font-weight: bold; }
+        
+        .marquee-container {
+            background: rgba(251, 191, 36, 0.1); border: 1px dashed var(--gold); color: var(--gold);
+            padding: 8px 0; border-radius: 8px; margin-bottom: 20px; overflow: hidden; white-space: nowrap;
+        }
+        .marquee-text { display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-size: 12px; font-weight: 600; }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+
+        /* Video Editor Specifics */
+        .video-box { width: 100%; background: #000; border-radius: 12px; overflow: hidden; position: relative; min-height: 200px; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); }
+        video { width: 100%; height: auto; display: block; }
+        .drag-box { position: absolute; display: none; z-index: 50; border: 2px dashed white; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .resize-handle { width: 20px; height: 20px; background: #fff; position: absolute; bottom: -10px; right: -10px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+<div id="loader"></div>
+
+<div id="login-screen">
+    <div class="login-card">
+        <div style="font-size: 40px; margin-bottom: 10px;">🔐</div>
+        <h3 style="margin-top:0; color: var(--text-main);">Shine Access</h3>
+        <input type="text" id="accessKeyInput" placeholder="Enter your key..." style="text-align:center;">
+        <div id="login-error" style="color:#ef4444; font-size:12px; margin-bottom:15px; display:none;"></div>
+        
+        <button onclick="handleLogin()" class="btn btn-primary">VERIFY & LOGIN</button>
+        <a href="#" onclick="handleFreeTrial()" style="display:block; margin-top:15px; font-size:13px; color:var(--text-muted); text-decoration:none;">✨ Free Trial (Guest Mode)</a>
+
+        <div style="margin-top: 30px; border-top: 1px solid var(--border); padding-top: 20px;">
+            <div class="plan-box">
+                <div class="plan-name">💎 Basic</div>
+                <div class="plan-cost">5,000 MMK</div>
+                <a href="https://t.me/shinemovierecap_admin" style="display:block; margin-top:5px; font-size:12px; color:var(--icon-blue); font-weight:bold; text-decoration:none;">BUY NOW</a>
+            </div>
+            <div class="plan-box pro">
+                <div class="plan-name">👑 Pro Plan</div>
+                <div class="plan-cost">10,000 MMK</div>
+                <a href="https://t.me/shinemovierecap_admin" style="display:block; margin-top:5px; font-size:12px; color:var(--icon-blue); font-weight:bold; text-decoration:none;">BUY NOW</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="main-app-content" style="display:none;">
+    
+    <div id="dashboard-view">
+        <div class="header-section">
+            <div class="header-title">
+                <h1>Shine Movie Recap.</h1>
+                <p>AI Automation Tools V4.5</p>
+            </div>
+            <div class="header-profile" onclick="handleLogout()">
+                <i class="fa-solid fa-user"></i>
+            </div>
+        </div>
+
+        <div style="display:inline-flex; align-items:center; background:rgba(251, 191, 36, 0.1); color:var(--gold); padding:6px 12px; border-radius:20px; font-size:12px; font-weight:bold; margin-bottom:20px; border:1px solid var(--gold);">
+            <i class="fa-solid fa-coins" style="margin-right:5px;"></i> Balance: <span id="dashCoinCount" style="margin-left:5px;">...</span>
+        </div>
+
+        <div class="tools-grid">
+            
+            <div class="tool-card" onclick="openWorkspace('recap')">
+                <div class="icon-box" style="background: var(--icon-blue);">
+                    <i class="fa-solid fa-video"></i>
+                </div>
+                <div class="pro-badge"><i class="fa-solid fa-lock"></i> PRO</div>
+                <div class="card-content">
+                    <h3>Video Recap</h3>
+                    <p>Sync voiceovers, remove original audio, and add logos.</p>
+                </div>
+                <i class="fa-solid fa-arrow-right card-arrow"></i>
+            </div>
+
+            <div class="tool-card" onclick="openWorkspace('transcribe')">
+                <div class="icon-box" style="background: var(--icon-purple);">
+                    <i class="fa-solid fa-microphone"></i>
+                </div>
+                <div class="pro-badge"><i class="fa-solid fa-lock"></i> PRO</div>
+                <div class="card-content">
+                    <h3>Transcribe</h3>
+                    <p>Convert Youtube video to accurate word-for-word transcript.</p>
+                </div>
+                <i class="fa-solid fa-arrow-right card-arrow"></i>
+            </div>
+            
+            <a href="https://t.me/shinemovierecap1" target="_blank" class="tool-card" style="text-decoration:none;">
+                <div class="icon-box" style="background: #0ea5e9;">
+                    <i class="fa-brands fa-telegram"></i>
+                </div>
+                <div class="card-content">
+                    <h3>Join Channel</h3>
+                    <p>Get updates and buy coins.</p>
+                </div>
+                <i class="fa-solid fa-arrow-right card-arrow"></i>
+            </a>
+        </div>
+    </div>
+
+    <div id="workspace-view">
+        <button class="back-btn" onclick="closeWorkspace()">
+            <i class="fa-solid fa-chevron-left"></i> Back to Dashboard
+        </button>
+
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 id="workspace-title" style="margin:0; font-size:18px;">Shine Video Recap</h2>
+            <div style="font-size:12px; font-weight:bold; color:var(--text-muted);" id="display-user-id">User: ...</div>
+        </div>
+
+        <div class="marquee-container"><div class="marquee-text">Video Uploading တင်နေချိန်မှာ လိုင်းမကောင်းရင် နည်းနည်း ကြာနိုင်ပါတယ်ဗျ။ လိုင်းမကောင်းရင် VPN လေးခံပြီး အသုံးပြုပေးပါဗျ။</div></div>
+
+        <div id="result-section" class="workspace-card" style="border: 2px solid #10b981; display:none;">
+            <span class="card-title-ws" style="color:#10b981;">✨ Result Video</span>
+            <div class="video-box"><video id="resultVideo" controls></video></div>
+            <br><a id="downloadBtn" href="#" download class="btn btn-success">⬇️ Download Video</a>
+        </div>
+
+        <div id="view-editor">
+            <div class="workspace-card">
+                <span class="card-title-ws">1. Upload Video</span>
+                <div id="src-file">
+                    <label for="videoFileInput" style="display:block; padding:30px; border:2px dashed var(--border); border-radius:16px; text-align:center; cursor:pointer; background:var(--input-bg);">
+                        <i class="fa-solid fa-cloud-arrow-up" style="font-size:30px; color:var(--icon-blue); margin-bottom:10px;"></i>
+                        <div style="font-size:14px; color:var(--text-muted);">Click to upload video</div>
+                    </label>
+                    <input type="file" id="videoFileInput" accept="video/*" style="display:none;">
+                    <button onclick="uploadVideoFile()" class="btn btn-primary" style="margin-top:15px;">⬆️ Upload Video</button>
+                </div>
+                
+                <div class="video-box" id="videoContainer" style="margin-top:15px; border:1px solid #333;">
+                    <span class="placeholder-text" style="color:grey;">Video Preview</span>
+                    <div id="blurBox" class="drag-box" style="width:100px; height:50px; background:rgba(239, 68, 68, 0.4); border:2px solid red;"><div class="resize-handle"></div></div>
+                    <div id="logoBox" class="drag-box" style="width:80px; height:80px; border:2px dashed #10b981;"><img id="previewLogo" style="width:100%; height:100%; object-fit:contain; pointer-events:none;"><div class="resize-handle"></div></div>
+                    <div id="textBox" class="drag-box" style="width:200px; height:50px; border:2px dashed blue; display:flex; justify-content:center; align-items:center; color: white; font-weight:bold; font-size: 20px; white-space: nowrap; overflow: hidden; text-shadow: 1px 1px 2px black;"><span id="previewTextContent">Shine KoKo Movie Recap</span><div class="resize-handle"></div></div>
+                </div>
+            </div>
+
+            <form id="processForm">
+                <input type="hidden" name="video_filename" id="videoFilename">
+                <input type="hidden" name="blur_x" id="blur_x" value="0"><input type="hidden" name="blur_y" id="blur_y" value="0"><input type="hidden" name="blur_w" id="blur_w" value="0"><input type="hidden" name="blur_h" id="blur_h" value="0">
+                <input type="hidden" name="logo_x" id="logo_x" value="0"><input type="hidden" name="logo_y" id="logo_y" value="0"><input type="hidden" name="logo_w" id="logo_w" value="100"><input type="hidden" name="logo_h" id="logo_h" value="100">
+                <input type="hidden" name="text_x" id="text_x" value="0"><input type="hidden" name="text_y" id="text_y" value="0"><input type="hidden" name="text_w" id="text_w" value="200"><input type="hidden" name="text_h" id="text_h" value="50">
+                
+                <div class="workspace-card">
+                    <span class="card-title-ws">🛡️ Bypass Options</span>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                        <label style="display:flex; align-items:center; gap:5px; font-size:14px;"><input type="checkbox" name="bypass_flip"> Flip</label>
+                        <label style="display:flex; align-items:center; gap:5px; font-size:14px;"><input type="checkbox" name="bypass_speed"> Speed</label>
+                        <label style="display:flex; align-items:center; gap:5px; font-size:14px;"><input type="checkbox" name="bypass_color"> Color</label>
+                    </div>
+                </div>
+
+                <div class="workspace-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span class="card-title-ws" style="margin:0;">🎙️ AI Dubbing</span>
+                        <button type="button" id="btnReloadAI" onclick="reloadTranslation()" style="background:var(--input-bg); color:var(--text-main); border:1px solid var(--border); padding:5px 10px; border-radius:8px; cursor:pointer;">↻ Fix</button>
+                    </div>
+                    <textarea name="ai_text" rows="4" placeholder="Translated text will appear here..."></textarea>
+                    <select name="voice_gender"><option value="male">Male Voice</option><option value="female">Female Voice</option></select>
+                </div>
+
+                <div class="workspace-card">
+                    <span class="card-title-ws">🎭 Overlays</span>
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-size:12px; color:var(--text-muted);">Text Watermark</label>
+                        <input type="text" name="text_watermark" value="Shine KoKo Movie Recap" oninput="updateTextPreview(this.value)">
+                    </div>
+                    <label style="display:flex; align-items:center; gap:10px; margin-bottom:15px; font-size:14px;"><input type="checkbox" onclick="toggleBox('blurBox', this.checked)" name="blur_enabled"> Enable Blur Mask</label>
+                    <input type="file" name="logo_file" accept="image/*" onchange="loadLogo(event)" style="background: var(--input-bg);">
+                </div>
+
+                <button type="button" id="processBtn" onclick="startProcessing()" class="btn btn-primary">🚀 START PROCESSING (3 Coins)</button>
+            </form>
+        </div>
+
+        <div id="view-transcribe" style="display:none;">
+            <div class="workspace-card">
+                <span class="card-title-ws">YouTube Transcription Pro</span>
+                <p style="font-size:12px; color:var(--text-muted); margin-top:0;">Powered by Custom API (Paste YouTube Link to extract Burmese Transcript)</p>
+                
+                <div style="margin-top:15px;">
+                    <label style="font-size:13px; font-weight:bold; color:var(--text-main);">YouTube URL:</label>
+                    <input type="text" id="youtubeUrlInput" placeholder="Paste YouTube Link here..." class="form-control" style="margin-top:5px; background:var(--input-bg);">
+                </div>
+
+                <button onclick="handleYouTubeTranscribe()" class="btn btn-primary" style="margin-top:15px;">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> GENERATE TRANSCRIPT
+                </button>
+            </div>
+
+            <div class="workspace-card" id="transcribeResultCard" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="card-title-ws" style="color:#10b981;">📝 Transcript (Burmese)</span>
+                    <button onclick="copyTranscription()" style="background:none; border:none; color:var(--icon-blue); cursor:pointer;"><i class="fa-solid fa-copy"></i> Copy</button>
+                </div>
+                <textarea id="transcribeOutput" rows="15" style="font-family: 'Padauk', sans-serif; line-height: 1.6;"></textarea>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    /* --- FIREBASE CONFIG --- */
+    const firebaseConfig = {
+        apiKey: "AIzaSyBN71uutTbtoqST6M1PcLEIspKCn-lYMbA",
+        authDomain: "paytopay-2a95a.firebaseapp.com",
+        projectId: "paytopay-2a95a",
+        storageBucket: "paytopay-2a95a.firebasestorage.app",
+        messagingSenderId: "925946540162",
+        appId: "1:925946540162:web:3c1b790c05bbd6a60b849b"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let currentUserCoins = 0; 
+    let currentUserKey = null; 
+    let currentProcessCost = 3; 
+
+    /* --- Navigation Logic --- */
+    function openWorkspace(tool) {
+        if (tool === 'transcribe') {
+            if (currentUserKey && currentUserKey.startsWith("TRIAL-")) {
+                alert("🔒 Locked Feature!\n\nTranscribe feature is available for Pro users only.\nPlease login with a valid Access Key.");
+                return;
+            }
+        }
+
+        document.getElementById('dashboard-view').style.display = 'none';
+        document.getElementById('workspace-view').style.display = 'block';
+        window.scrollTo(0,0);
+
+        document.getElementById('view-editor').style.display = 'none';
+        document.getElementById('view-transcribe').style.display = 'none';
+
+        if(tool === 'recap') {
+            document.getElementById('workspace-title').innerText = "Shine Video Recap";
+            document.getElementById('view-editor').style.display = 'block';
+        } else if (tool === 'transcribe') {
+            document.getElementById('workspace-title').innerText = "Video Transcript Pro";
+            document.getElementById('view-transcribe').style.display = 'block';
+        }
+    }
+
+    function closeWorkspace() {
+        document.getElementById('workspace-view').style.display = 'none';
+        document.getElementById('dashboard-view').style.display = 'block';
+    }
+
+    /* --- Modified YouTube Transcribe Logic with Custom API Key --- */
+    async function handleYouTubeTranscribe() {
+        const url = document.getElementById('youtubeUrlInput').value.trim();
+        const outputArea = document.getElementById('transcribeOutput');
+        const resultCard = document.getElementById('transcribeResultCard');
+        
+        // Custom API Key Added
+        const customApiKey = "sk_Ppev0dOwHixaOzZtj1eNG5e8f0jig-k48cKaLOAs-2o";
+
+        if (!url) return alert("Please enter a YouTube URL.");
+
+        loader(true, "Downloading & Transcribing (Server)...");
+        resultCard.style.display = 'none';
+        outputArea.value = "";
+
+        try {
+            const response = await fetch('/download-video', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    url: url,
+                    api_key: customApiKey 
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                outputArea.value = data.translated_text; 
+                resultCard.style.display = 'block';
+            } else {
+                alert("Error: " + data.message);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Connection Failed: " + error.message);
+        } finally {
+            loader(false);
+        }
+    }
+
+    function copyTranscription() {
+        const copyText = document.getElementById("transcribeOutput");
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); 
+        navigator.clipboard.writeText(copyText.value);
+        alert("Copied to clipboard!");
+    }
+
+    /* --- Existing Logic --- */
+    function getDeviceId() {
+        let id = localStorage.getItem('recap_device_id');
+        if (!id) { id = 'DEV-' + Math.random().toString(36).substr(2, 9).toUpperCase(); localStorage.setItem('recap_device_id', id); }
+        return id;
+    }
+
+    async function handleFreeTrial() {
+        loader(true, "Guest Mode...");
+        const trialKey = "TRIAL-" + getDeviceId();
+        const expiry = Date.now() + 3600000; 
+        if (localStorage.getItem('trial_coins') === null) { localStorage.setItem('trial_coins', 3); }
+        localStorage.setItem('recap_session', JSON.stringify({ key: trialKey, expiry, isTrial: true }));
+        grantAccess(trialKey, expiry);
+        loader(false);
+    }
+
+    function calculateExpiry(data) {
+        const firstUsed = Number(data.firstUsed) || Date.now();
+        const duration = Number(data.durationMs) || (Number(data.days) * 86400000);
+        return firstUsed + duration;
+    }
+
+    async function handleLogin() {
+        const key = document.getElementById('accessKeyInput').value.trim();
+        const err = document.getElementById('login-error');
+        const deviceId = getDeviceId();
+        if (!key) return;
+
+        loader(true, "Checking...");
+        try {
+            const doc = await db.collection("access_keys").doc(key).get();
+            if (doc.exists) {
+                const data = doc.data();
+                if (data.deviceId && data.deviceId !== deviceId) {
+                    err.innerText = "❌ Used on another device."; err.style.display = 'block'; loader(false); return;
+                }
+                if (!data.firstUsed) {
+                    await db.collection("access_keys").doc(key).update({ firstUsed: Date.now(), deviceId, coins: data.coins || 0 });
+                    data.firstUsed = Date.now();
+                }
+                const expiry = calculateExpiry(data);
+                if (Date.now() > expiry) {
+                    err.innerText = "❌ Expired."; err.style.display = 'block';
+                } else {
+                    localStorage.setItem('recap_session', JSON.stringify({ key, expiry }));
+                    grantAccess(key, expiry);
+                }
+            } else { err.innerText = "❌ Invalid Key."; err.style.display = 'block'; }
+        } catch(e) { alert("Error: " + e.message); }
+        loader(false);
+    }
+
+    async function verifySession() {
+        const session = JSON.parse(localStorage.getItem('recap_session'));
+        if (!session) { document.getElementById('login-screen').style.display = 'flex'; return; }
+        
+        if (session.key.startsWith("TRIAL-")) {
+            if (Date.now() > session.expiry) handleLogout();
+            else grantAccess(session.key, session.expiry);
+            return;
+        }
+
+        try {
+            const doc = await db.collection("access_keys").doc(session.key).get();
+            if (doc.exists) {
+                const data = doc.data();
+                const expiry = calculateExpiry(data);
+                if (Date.now() > expiry || data.deviceId !== getDeviceId()) handleLogout();
+                else grantAccess(session.key, expiry);
+            } else handleLogout();
+        } catch(e) { handleLogout(); }
+    }
+
+    function grantAccess(key, expiry) {
+        currentUserKey = key; 
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app-content').style.display = 'block';
+        document.getElementById('dashboard-view').style.display = 'block';
+        document.getElementById('workspace-view').style.display = 'none';
+        
+        document.getElementById('display-user-id').innerText = "ID: " + key.substring(0,8) + "...";
+        setupCoinListener(key); 
+        makeInteractive('blurBox'); makeInteractive('logoBox'); makeInteractive('textBox');
+    }
+
+    function setupCoinListener(key) {
+        if (key.startsWith("TRIAL-")) {
+            let trialCoins = localStorage.getItem('trial_coins');
+            if (trialCoins === null) { trialCoins = 3; localStorage.setItem('trial_coins', 3); }
+            currentUserCoins = Number(trialCoins);
+            document.getElementById('dashCoinCount').innerText = currentUserCoins;
+            return;
+        }
+
+        db.collection("access_keys").doc(key).onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                currentUserCoins = Number(data.coins) || 0;
+                document.getElementById('dashCoinCount').innerText = currentUserCoins;
+            }
+        });
+    }
+
+    function handleLogout() { localStorage.removeItem('recap_session'); location.reload(); }
+
+    function loader(show, msg="Processing...") { 
+        const el = document.getElementById('loader');
+        el.innerHTML = `<div class="spinner"></div><div>${msg}</div>`;
+        el.style.display = show ? 'flex' : 'none'; 
+    }
+
+    async function uploadVideoFile() {
+        const f = document.getElementById('videoFileInput').files[0]; if(!f) return alert("Select File");
+        const fd = new FormData(); fd.append('video_file', f);
+        loader(true, "Uploading...");
+        try {
+            const res = await fetch('/upload-video', { method:'POST', body:fd, headers: { 'Connection': 'keep-alive' } });
+            handleRes(await res.json());
+        } catch(e) { alert("Upload Error"); } 
+        loader(false);
+    }
+
+    function updateCoinRequirement(durationSeconds) {
+        const minutes = durationSeconds / 60;
+        if (minutes < 2) currentProcessCost = 3;
+        else if (minutes < 4) currentProcessCost = 5;
+        else if (minutes < 8) currentProcessCost = 10;
+        else currentProcessCost = Math.ceil(minutes * 1.5);
+        const btn = document.getElementById('processBtn');
+        if(btn) btn.innerHTML = `🚀 START PROCESSING (${currentProcessCost} Coins)`;
+    }
+
+    function handleRes(d) {
+        if(d.status === 'success') {
+            document.getElementById('videoFilename').value = d.filename;
+            document.querySelector('.placeholder-text').style.display = 'none';
+            const old = document.getElementById('mainVideo'); if(old) old.remove();
+            const v = document.createElement('video');
+            v.id = 'mainVideo'; v.src = d.path; v.controls = true; v.style.width = '100%';
+            document.getElementById('videoContainer').prepend(v);
+            v.onloadedmetadata = () => { updateCoords('blurBox'); updateCoords('logoBox'); updateCoords('textBox'); updateCoinRequirement(v.duration); };
+            if(d.translated_text) document.querySelector('textarea[name="ai_text"]').value = d.translated_text;
+            else reloadTranslation();
+        } else alert(d.message);
+    }
+
+    async function reloadTranslation() {
+        const fname = document.getElementById('videoFilename').value; if(!fname) return;
+        const btn = document.getElementById('btnReloadAI'); btn.innerHTML = "...";
+        try {
+            const fd = new FormData(); fd.append('filename', fname);
+            const res = await fetch('/re-analyze', {method:'POST', body:fd});
+            const d = await res.json();
+            document.querySelector('textarea[name="ai_text"]').value = d.translated_text || "Error fetching script";
+        } catch(e) { console.log("AI Error"); }
+        btn.innerHTML = "↻ Fix";
+    }
+
+    async function startProcessing() {
+        if(!document.getElementById('videoFilename').value) return alert("Upload Video First!");
+        const vid = document.getElementById('mainVideo');
+        if(vid && vid.duration) updateCoinRequirement(vid.duration);
+
+        if (currentUserKey.startsWith("TRIAL-")) {
+            if (currentUserCoins < currentProcessCost) {
+                if(confirm("Not enough coins. Buy Premium?\nClick OK to visit Telegram.")) { window.open("https://t.me/shinemovierecap1", "_blank"); }
+                return;
+            }
+        } else {
+            loader(true, "Validating...");
+            try {
+                const doc = await db.collection("access_keys").doc(currentUserKey).get();
+                const freshCoins = Number(doc.data().coins) || 0;
+                if (freshCoins < currentProcessCost) { loader(false); alert(`⚠️ Not enough coins.`); return; }
+            } catch(e) { loader(false); return alert("Connection Error"); }
+        }
+
+        document.getElementById('result-section').style.display = 'none';
+        loader(true, "Processing in Cloud...");
+        const fd = new FormData(document.getElementById('processForm'));
+        try {
+            const res = await fetch('/process', {method:'POST', body:fd});
+            const d = await res.json();
+            if(d.status === 'queued') checkStatus(d.job_id); else { alert(d.message); loader(false); }
+        } catch(e) { alert("Server Error"); loader(false); }
+    }
+
+    function checkStatus(jobId) {
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch('/status/' + jobId);
+                const d = await res.json();
+                if(d.status === 'success') { 
+                    clearInterval(interval); 
+                    if (currentUserKey.startsWith("TRIAL-")) {
+                        currentUserCoins -= currentProcessCost;
+                        localStorage.setItem('trial_coins', currentUserCoins);
+                        document.getElementById('dashCoinCount').innerText = currentUserCoins;
+                    } else {
+                        await db.collection("access_keys").doc(currentUserKey).update({ coins: firebase.firestore.FieldValue.increment(-currentProcessCost) });
+                    }
+                    loader(false); showResult(d.url); 
+                }
+                else if(d.status === 'failed') { clearInterval(interval); loader(false); alert("Failed!"); }
+            } catch(e) {}
+        }, 3000); 
+    }
+
+    async function showResult(serverUrl) {
+        loader(true, "Downloading...");
+        try {
+            const response = await fetch(serverUrl);
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            document.getElementById('resultVideo').src = objectUrl;
+            document.getElementById('downloadBtn').href = objectUrl;
+            document.getElementById('result-section').style.display = 'block';
+            document.getElementById('result-section').scrollIntoView({behavior: "smooth"});
+        } catch (e) { alert("Result Save Error"); } loader(false);
+    }
+
+    function toggleBox(id, show) { const el = document.getElementById(id); if(el) { el.style.display = show ? 'block' : 'none'; if(show) updateCoords(id); } }
+    function loadLogo(e) { if(e.target.files[0]) { const r = new FileReader(); r.onload = (ev) => { document.getElementById('previewLogo').src=ev.target.result; toggleBox('logoBox', true); }; r.readAsDataURL(e.target.files[0]); } }
+    function updateTextPreview(val) { const el = document.getElementById('previewTextContent'); const box = document.getElementById('textBox'); if(el) el.innerText = val; if(box) box.style.display = val.trim() ? 'flex' : 'none'; updateCoords('textBox'); }
+
+    function updateCoords(id) {
+        const v = document.getElementById('mainVideo'), box = document.getElementById(id);
+        if(!v || !box || v.videoWidth === 0) return;
+        const vr = v.getBoundingClientRect(), br = box.getBoundingClientRect(), sx = v.videoWidth / vr.width, sy = v.videoHeight / vr.height;
+        const x = Math.round((br.left - vr.left) * sx), y = Math.round((br.top - vr.top) * sy), w = Math.round(br.width * sx), h = Math.round(br.height * sy);
+        if(id==='blurBox') { document.getElementById('blur_x').value=x; document.getElementById('blur_y').value=y; document.getElementById('blur_w').value=w; document.getElementById('blur_h').value=h; } 
+        else if(id==='logoBox') { document.getElementById('logo_x').value=x; document.getElementById('logo_y').value=y; document.getElementById('logo_w').value=w; document.getElementById('logo_h').value=h; }
+        else if(id==='textBox') { document.getElementById('text_x').value=x; document.getElementById('text_y').value=y; document.getElementById('text_w').value=w; document.getElementById('text_h').value=h; }
+    }
+
+    function makeInteractive(id) {
+        const box = document.getElementById(id), handle = box.querySelector('.resize-handle');
+        if(!box || !handle) return;
+        let isDrag=false, isResize=false, startX, startY, sl, st, sw, sh;
+        const start = (e) => { if(e.target === handle) return; isDrag = true; const p = e.touches ? e.touches[0] : e; startX = p.clientX; startY = p.clientY; sl = box.offsetLeft; st = box.offsetTop; };
+        const resizeStart = (e) => { e.stopPropagation(); isResize = true; const p = e.touches ? e.touches[0] : e; startX = p.clientX; startY = p.clientY; sw = box.offsetWidth; sh = box.offsetHeight; };
+        const move = (e) => {
+            if(!isDrag && !isResize) return; const p = e.touches ? e.touches[0] : e;
+            if(isDrag) { box.style.left = (sl + (p.clientX - startX)) + 'px'; box.style.top = (st + (p.clientY - startY)) + 'px'; }
+            if(isResize) { box.style.width = (sw + (p.clientX - startX)) + 'px'; box.style.height = (sh + (p.clientY - startY)) + 'px'; }
+            updateCoords(id);
+        };
+        const end = () => { isDrag = false; isResize = false; };
+        box.addEventListener('mousedown', start); box.addEventListener('touchstart', start);
+        handle.addEventListener('mousedown', resizeStart); handle.addEventListener('touchstart', resizeStart);
+        window.addEventListener('mousemove', move); window.addEventListener('touchmove', move);
+        window.addEventListener('mouseup', end); window.addEventListener('touchend', end);
+    }
+
+    document.addEventListener('DOMContentLoaded', verifySession);
+</script>
+
+</body>
+</html>
